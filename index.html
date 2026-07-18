@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Build a playful, personal bulletin-board website in your browser.">
+  <title>Websites with Whimsy — Bulletin Board Builder</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#builder">Skip to builder</a>
+  <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
+    <div class="auth-paper">
+      <p class="eyebrow">Websites with Whimsy</p>
+      <h1 id="auth-title">Keep every little piece of whimsy</h1>
+      <p id="auth-intro">Sign in to open your saved bulletin boards.</p>
+      <div id="setup-message" class="setup-message" hidden>
+        <strong>Connect Supabase to continue</strong>
+        <p>Add your project URL and publishable key to <code>config.js</code>, then refresh this page. Setup SQL is provided in <code>supabase-schema.sql</code>.</p>
+      </div>
+      <div id="auth-tabs" class="auth-tabs" role="tablist" aria-label="Account options">
+        <button type="button" role="tab" aria-selected="true" data-auth-tab="signin">Sign in</button>
+        <button type="button" role="tab" aria-selected="false" data-auth-tab="signup">Create account</button>
+      </div>
+      <form id="auth-form" class="auth-form">
+        <div class="field" data-username-field hidden><label for="auth-username">Username</label><input id="auth-username" autocomplete="username" minlength="2" maxlength="40"></div>
+        <div class="field"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" minlength="8" required></div>
+        <button class="button button--primary" type="submit" id="auth-submit">Sign in</button>
+        <button class="text-button" type="button" id="forgot-password">Forgot password?</button>
+        <p id="auth-message" class="auth-message" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
+  <div id="app-shell" hidden>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Websites with Whimsy</p>
+      <h1>Bulletin Board Builder</h1>
+      <p>Make a tiny personal page, one Post-It at a time.</p>
+    </div>
+    <div class="header-actions"><button id="save-status" class="save-status" type="button" aria-live="polite">Saved</button><button id="boards-button" class="button button--light" type="button">My Boards</button><button id="sign-out" class="button button--danger" type="button">Sign out</button><button id="reset-board" class="button button--danger" type="button">Reset Board</button></div>
+  </header>
+
+  <main class="workspace">
+    <section class="builder" id="builder" aria-labelledby="builder-heading">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">Build</p>
+          <h2 id="builder-heading">Your board details</h2>
+        </div>
+        <button id="add-block" class="button button--primary" type="button">Add a Post-It</button>
+      </div>
+
+      <form id="profile-form" class="profile-form">
+        <div class="field">
+          <label for="profile-name">Your name</label>
+          <input id="profile-name" name="name" type="text" maxlength="60" autocomplete="name" placeholder="e.g. Juniper Jones">
+        </div>
+        <div class="field">
+          <label for="profile-headline">Headline</label>
+          <input id="profile-headline" name="headline" type="text" maxlength="100" placeholder="e.g. Maker of small, joyful things">
+        </div>
+        <div class="field">
+          <label for="profile-introduction">Short introduction</label>
+          <textarea id="profile-introduction" name="introduction" rows="3" maxlength="280" placeholder="Tell visitors a little about yourself."></textarea>
+        </div>
+      </form>
+
+      <details class="board-cloud-settings">
+        <summary>Board settings</summary>
+        <div class="cloud-settings-grid">
+          <div class="field"><label for="current-board-name">Board name</label><input id="current-board-name" maxlength="100"></div>
+          <div class="field"><label for="board-status">Status</label><select id="board-status"><option value="draft">Draft</option><option value="live">Live</option></select></div>
+          <div class="field"><label for="board-privacy">Access</label><select id="board-privacy"><option value="private">Private</option><option value="public">Public (publishing coming later)</option></select></div>
+        </div>
+      </details>
+
+      <div class="media-notice" role="note">
+        <strong>✓ Your board is automatically saved</strong>
+        <p>Text, images, videos, Archive contents, and settings are stored securely with your account.</p>
+      </div>
+
+      <div class="blocks-heading">
+        <h2>Your Post-Its</h2>
+        <span id="block-count" class="count" aria-live="polite">0 Post-Its</span>
+      </div>
+      <div id="block-editors" class="block-editors"></div>
+    </section>
+
+    <section class="preview-panel" aria-label="Board preview">
+      <div class="preview-header">
+        <p class="step-label">Preview</p>
+      </div>
+      <div id="board-preview" class="board" data-theme="bulletin-board"></div>
+    </section>
+  </main>
+  </div>
+
+  <dialog id="boards-dialog" aria-labelledby="boards-title">
+    <div class="dialog-card boards-card">
+      <div class="dialog-heading"><div><p class="step-label">Your collection</p><h2 id="boards-title">My Boards</h2></div><button class="icon-button" type="button" data-close-boards aria-label="Close boards">×</button></div>
+      <form id="new-board-form" class="new-board-form"><label for="new-board-name">New board name</label><div><input id="new-board-name" maxlength="100" required placeholder="My whimsical board"><button class="button button--primary" type="submit">Create Board</button></div></form>
+      <div id="boards-list" class="boards-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <div class="dialog-card"><h2 id="import-title">Bring your local board along?</h2><p>A bulletin board is saved in this browser. Import its text, Post-Its, Archive, and settings into your account. Your local copy will not be deleted.</p><div class="import-actions"><button class="button button--primary" type="button" data-import-local>Import Local Board</button><button class="button button--light" type="button" data-skip-import>Skip This Import</button></div><p id="import-message" role="status"></p></div>
+  </dialog>
+
+  <dialog id="block-dialog" aria-labelledby="dialog-title">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-heading">
+        <div>
+          <p class="step-label">Choose a style</p>
+          <h2 id="dialog-title">What kind of Post-It?</h2>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Close Post-It chooser">×</button>
+      </div>
+      <div class="type-options">
+        <button class="type-option" type="button" data-add-type="text-note">
+          <span class="type-icon" aria-hidden="true">Aa</span>
+          <strong>Text Post-It</strong>
+          <span>Share a thought, update, link, or tiny story.</span>
+        </button>
+        <button class="type-option" type="button" data-add-type="media-note">
+          <span class="type-icon" aria-hidden="true">▣</span>
+          <strong>Media Post-It</strong>
+          <span>Add an image or a short looping video clip.</span>
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="empty-state-template">
+    <div class="empty-state">
+      <span class="empty-doodle" aria-hidden="true">✦</span>
+      <p>Your board is waiting for a little whimsy.</p>
+      <button class="button button--light" type="button" data-empty-add>Add Your First Post-It</button>
+    </div>
+  </template>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="config.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
