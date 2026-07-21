@@ -26,6 +26,21 @@ create table if not exists public.boards (
 create index if not exists boards_user_id_idx on public.boards(user_id);
 create index if not exists boards_updated_at_idx on public.boards(updated_at desc);
 
+create or replace function public.enforce_board_limit()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text, 0));
+  if (select count(*) from public.boards where user_id = new.user_id) >= 3 then
+    raise exception 'Board limit reached. Delete or overwrite a board before creating another.' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists boards_enforce_limit on public.boards;
+create trigger boards_enforce_limit before insert on public.boards
+for each row execute function public.enforce_board_limit();
+
 create or replace function public.set_updated_at()
 returns trigger language plpgsql security invoker set search_path = '' as $$
 begin

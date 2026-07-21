@@ -3,6 +3,9 @@
 import { configured, initCloud, cloud } from "./cloud.js";
 
 const STORAGE_KEY = "websites-with-whimsy-board-v1";
+const UNSAVED_PREFIX = "websites-with-whimsy-unsaved-v1";
+const SELECTED_BOARD_PREFIX = "websites-with-whimsy-selected-board-v1";
+const MAX_BOARDS = 3;
 const NOTE_COLORS = { yellow: "#ffe681", pink: "#ffc4d5", blue: "#bde8ee" };
 
 const defaultBoard = () => ({
@@ -160,6 +163,35 @@ let savePromise = null;
 let boardDirty = false;
 let authTransition = null;
 
+function unsavedKey(userId = currentUser?.id, boardId = currentBoardId) {
+  return userId && boardId ? `${UNSAVED_PREFIX}:${userId}:${boardId}` : null;
+}
+
+function selectedBoardKey(userId = currentUser?.id) {
+  return userId ? `${SELECTED_BOARD_PREFIX}:${userId}` : null;
+}
+
+function writeUnsavedFallback() {
+  const key = unsavedKey();
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      board: structuredClone(board),
+      meta: structuredClone(currentBoardMeta)
+    }));
+  } catch (error) { console.warn("Could not write temporary board fallback.", error); }
+}
+
+function readUnsavedFallback(userId, boardId) {
+  try { return JSON.parse(localStorage.getItem(unsavedKey(userId, boardId)) || "null"); }
+  catch (error) { console.warn("Could not read temporary board fallback.", error); return null; }
+}
+
+function clearUnsavedFallback(userId = currentUser?.id, boardId = currentBoardId) {
+  const key = unsavedKey(userId, boardId); if (key) localStorage.removeItem(key);
+}
+
 function escapeHtml(value) {
   const div = document.createElement("div"); div.textContent = value;
   return div.innerHTML.replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -257,6 +289,7 @@ function renderAll() { renderEditors(); themes[board.themeId].render(); }
 function persistBoard() {
   if (!currentUser || !currentBoardId) return;
   boardDirty = true;
+  writeUnsavedFallback();
   setSaveState("Saving...");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => flushSave(), 800);
@@ -270,18 +303,32 @@ function setSaveState(text, isError = false) {
   els.saveStatus.classList.toggle("is-saving", text === "Saving...");
 }
 
-async function flushSave() {
+async function flushSave({ force = false } = {}) {
   clearTimeout(saveTimer); saveTimer = null;
+  if (force && currentBoardId) { boardDirty = true; writeUnsavedFallback(); }
   if (!currentBoardId || !boardDirty) return true;
-  if (savePromise) { await savePromise; if (boardDirty) return flushSave(); return true; }
+  if (savePromise) {
+    try { await savePromise; } catch { return false; }
+    if (boardDirty) return flushSave();
+    return true;
+  }
+  const savingBoardId = currentBoardId;
+  const savingUserId = currentUser?.id;
+  const boardSnapshot = structuredClone(board);
+  const metaSnapshot = structuredClone(currentBoardMeta);
   boardDirty = false; setSaveState("Saving...");
   savePromise = cloud.saveBoard(currentBoardId, {
-    board_name: currentBoardMeta.boardName || "Untitled Board", theme_id: board.themeId, board_data: board,
-    status: currentBoardMeta.status, is_public: currentBoardMeta.isPublic
+    board_name: metaSnapshot.boardName || "Untitled Board", theme_id: boardSnapshot.themeId, board_data: boardSnapshot,
+    status: metaSnapshot.status, is_public: metaSnapshot.isPublic
   });
-  try { await savePromise; setSaveState("Saved"); return true; }
-  catch (error) { boardDirty = true; setSaveState("Error saving — Retry", true); console.error(error); return false; }
+  try {
+    await savePromise;
+  }
+  catch (error) { boardDirty = true; writeUnsavedFallback(); setSaveState("Save failed — Retry", true); console.error(error); return false; }
   finally { savePromise = null; }
+  if (boardDirty && currentBoardId === savingBoardId) return flushSave();
+  if (currentBoardId === savingBoardId) { clearUnsavedFallback(savingUserId, savingBoardId); setSaveState("Saved"); }
+  return true;
 }
 
 function showToast(message) {
@@ -456,16 +503,41 @@ async function selectBoard(id) {
     currentBoardId = row.id;
     currentBoardMeta = { boardName: row.board_name, status: row.status, isPublic: row.is_public };
     board = normalizeCloudBoard(row.board_data);
+    const fallback = readUnsavedFallback(currentUser.id, row.id);
+    const fallbackIsNewer = fallback?.savedAt && new Date(fallback.savedAt) > new Date(row.updated_at);
+    if (fallbackIsNewer && fallback.board) {
+      board = normalizeCloudBoard(fallback.board);
+      currentBoardMeta = {
+        boardName: String(fallback.meta?.boardName || row.board_name),
+        status: fallback.meta?.status === "live" ? "live" : "draft",
+        isPublic: fallback.meta?.isPublic === true
+      };
+      boardDirty = true;
+      setSaveState("Saving...");
+    } else {
+      clearUnsavedFallback(currentUser.id, row.id);
+      boardDirty = false;
+    }
     await hydrateSavedMedia(); syncBoardFields(); renderAll(); setSaveState("Saved"); els.boardsDialog.close();
+    const selectionKey = selectedBoardKey();
+    if (selectionKey) localStorage.setItem(selectionKey, row.id);
+    const url = new URL(window.location.href); url.searchParams.set("board", row.id); history.replaceState(null, "", url);
+    if (fallbackIsNewer) { showToast("Recovered unsaved changes from this browser."); persistBoard(); }
   } catch (error) { setSaveState("Error loading board", true); showToast(error.message); }
 }
 
 async function refreshBoardList() {
   boardRows = await cloud.listBoards();
   els.boardsList.innerHTML = boardRows.length ? boardRows.map(row => `<article class="board-row ${row.id === currentBoardId ? "is-current" : ""}"><div><strong>${escapeHtml(row.board_name)}</strong><span>${row.status} · ${row.is_public ? "public" : "private"}</span></div><div><button type="button" data-open-board="${row.id}" ${row.id === currentBoardId ? "disabled" : ""}>${row.id === currentBoardId ? "Open now" : "Open"}</button><button type="button" data-delete-board="${row.id}" aria-label="Delete board ${escapeHtml(row.board_name)}">Delete</button></div></article>`).join("") : `<p class="boards-empty">No boards yet. Create your first one above.</p>`;
+  const atLimit = boardRows.length >= MAX_BOARDS;
+  document.querySelector("#new-board-name").disabled = atLimit;
+  document.querySelector("#new-board-form button[type=submit]").disabled = atLimit;
+  document.querySelector("#boards-limit-message").textContent = atLimit ? "You have three boards. Delete or overwrite one before creating, duplicating, or importing another." : `${boardRows.length} of ${MAX_BOARDS} board slots used.`;
 }
 
 async function createNewBoard(name, source = defaultBoard()) {
+  await refreshBoardList();
+  if (boardRows.length >= MAX_BOARDS) throw new Error("You have reached the three-board limit. Delete or overwrite a board before creating, duplicating, or importing another.");
   const row = await cloud.createBoard(currentUser.id, name, source);
   await refreshBoardList(); await selectBoard(row.id); return row;
 }
@@ -475,7 +547,12 @@ async function showSignedIn(session) {
   els.authScreen.hidden = true; els.appShell.hidden = false;
   await refreshBoardList();
   if (!boardRows.length) await createNewBoard("My First Board");
-  else await selectBoard(boardRows[0].id);
+  else {
+    const requestedId = new URLSearchParams(window.location.search).get("board");
+    const rememberedId = localStorage.getItem(selectedBoardKey(currentUser.id));
+    const selectedId = [requestedId, rememberedId].find(id => boardRows.some(row => row.id === id)) || boardRows[0].id;
+    await selectBoard(selectedId);
+  }
   try {
     const profile = await cloud.profile();
     if (localStorage.getItem(STORAGE_KEY) && !profile.local_import_decided_at) els.importDialog.showModal();
@@ -553,6 +630,44 @@ document.querySelectorAll("#current-board-name, #board-status, #board-privacy").
 }));
 
 els.saveStatus.addEventListener("click", () => { if (boardDirty) flushSave(); });
+document.querySelector("#finish-later").addEventListener("click", () => {
+  const dialog = document.querySelector("#finish-later-dialog");
+  const input = document.querySelector("#finish-later-name");
+  document.querySelector("#finish-later-message").textContent = "";
+  input.value = currentBoardMeta.boardName === "My First Board" ? "" : currentBoardMeta.boardName;
+  dialog.showModal();
+  input.focus();
+});
+document.querySelectorAll("[data-close-finish-later]").forEach(button => button.addEventListener("click", () => document.querySelector("#finish-later-dialog").close()));
+document.querySelector("#finish-later-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const title = document.querySelector("#finish-later-name").value.trim();
+  const message = document.querySelector("#finish-later-message");
+  if (!title) { message.textContent = "Enter a title for this board."; return; }
+  currentBoardMeta.boardName = title;
+  currentBoardMeta.status = "draft";
+  syncBoardFields();
+  message.className = "help-text";
+  message.textContent = "Saving…";
+  persistBoard();
+  const saved = await flushSave({ force: true });
+  if (!saved) {
+    message.className = "error-text";
+    message.textContent = "Save failed. Check your connection and select Save board to retry.";
+    return;
+  }
+  document.querySelector("#finish-later-dialog").close();
+  showToast(`“${title}” was saved as a draft. You can reopen it from My Boards.`);
+  refreshBoardList().catch(error => console.warn("Board list refresh failed after save.", error));
+});
+document.querySelector("#save-board-pdf").addEventListener("click", async () => {
+  const saved = await flushSave();
+  if (!saved) {
+    showToast("The board could not be saved. Retry saving before exporting the PDF.");
+    return;
+  }
+  window.print();
+});
 
 document.querySelector("[data-import-local]").addEventListener("click", async () => {
   const message = document.querySelector("#import-message"); message.textContent = "Importing…";
@@ -576,16 +691,21 @@ async function startApplication() {
   }
   try {
     await initCloud();
-    cloud.onAuthChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        const password = prompt("Enter your new password (at least 8 characters):");
-        if (password) { const { error } = await cloud.updatePassword(password); els.authMessage.textContent = error ? error.message : "Password updated. You can continue."; }
-      }
-      if (session && !currentUser) await enterSession(session);
-      if (!session && currentUser) showSignedOut();
+    cloud.onAuthChange((event, session) => {
+      // Supabase API calls inside this callback can deadlock the client. Defer all async work.
+      setTimeout(() => handleAuthEvent(event, session), 0);
     });
     const session = await cloud.session(); if (session) await enterSession(session); else showSignedOut();
   } catch (error) { document.querySelector("#setup-message").hidden = false; document.querySelector("#setup-message p").textContent = `Could not connect to Supabase: ${error.message}`; }
+}
+
+async function handleAuthEvent(event, session) {
+  if (event === "PASSWORD_RECOVERY") {
+    const password = prompt("Enter your new password (at least 8 characters):");
+    if (password) { const { error } = await cloud.updatePassword(password); els.authMessage.textContent = error ? error.message : "Password updated. You can continue."; }
+  }
+  if (session && !currentUser) await enterSession(session);
+  if (!session && currentUser) showSignedOut();
 }
 
 startApplication();

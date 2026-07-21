@@ -95,6 +95,11 @@
         <p class="step-label">Preview</p>
       </div>
       <div id="board-preview" class="board" data-theme="bulletin-board"></div>
+      <div class="board-export-actions">
+        <button id="finish-later" class="button button--primary" type="button">Save this board to finish later</button>
+        <button id="save-board-pdf" class="button button--light" type="button">Save this board as a PDF</button>
+        <p>Opens your browser’s Print dialog. Choose “Save as PDF” as the destination.</p>
+      </div>
     </section>
   </main>
   <footer class="app-footer"><nav aria-label="Legal information"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy &amp; Cookie Policy</a></nav></footer>
@@ -103,13 +108,23 @@
   <dialog id="boards-dialog" aria-labelledby="boards-title">
     <div class="dialog-card boards-card">
       <div class="dialog-heading"><div><p class="step-label">Your collection</p><h2 id="boards-title">My Boards</h2></div><button class="icon-button" type="button" data-close-boards aria-label="Close boards">×</button></div>
-      <form id="new-board-form" class="new-board-form"><label for="new-board-name">New board name</label><div><input id="new-board-name" maxlength="100" required placeholder="My whimsical board"><button class="button button--primary" type="submit">Create Board</button></div></form>
+      <form id="new-board-form" class="new-board-form"><label for="new-board-name">New board name</label><div><input id="new-board-name" maxlength="100" required placeholder="My whimsical board"><button class="button button--primary" type="submit">Create Board</button></div><p id="boards-limit-message" class="help-text" role="status"></p></form>
       <div id="boards-list" class="boards-list"></div>
     </div>
   </dialog>
 
   <dialog id="import-dialog" aria-labelledby="import-title">
     <div class="dialog-card"><h2 id="import-title">Bring your local board along?</h2><p>A bulletin board is saved in this browser. Import its text, Post-Its, Archive, and settings into your account. Your local copy will not be deleted.</p><div class="import-actions"><button class="button button--primary" type="button" data-import-local>Import Local Board</button><button class="button button--light" type="button" data-skip-import>Skip This Import</button></div><p id="import-message" role="status"></p></div>
+  </dialog>
+
+  <dialog id="finish-later-dialog" aria-labelledby="finish-later-title">
+    <form id="finish-later-form" class="dialog-card">
+      <div class="dialog-heading"><div><p class="step-label">Save a draft</p><h2 id="finish-later-title">Finish this board later</h2></div><button class="icon-button" type="button" data-close-finish-later aria-label="Close save dialog">×</button></div>
+      <p>Give this board a title so you can find it in My Boards.</p>
+      <div class="field"><label for="finish-later-name">Board title</label><input id="finish-later-name" maxlength="100" required></div>
+      <div class="finish-later-actions"><button class="button button--primary" type="submit">Save board</button><button class="button button--light" type="button" data-close-finish-later>Cancel</button></div>
+      <p id="finish-later-message" class="error-text" role="status" aria-live="polite"></p>
+    </form>
   </dialog>
 
   <dialog id="block-dialog" aria-labelledby="dialog-title">
