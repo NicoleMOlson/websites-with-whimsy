@@ -204,7 +204,7 @@ function renderLink(block) {
 }
 
 function renderTextPreview(block) {
-  return `<article class="note note--text" style="--note-color:${NOTE_COLORS[block.color]}"><h3>${escapeHtml(block.title || "A little note")}</h3>${block.text ? `<p>${escapeHtml(block.text)}</p>` : ""}${renderLink(block)}</article>`;
+  return `<article class="note note--text" style="--note-color:${NOTE_COLORS[block.color]}">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ""}${block.text ? `<p>${escapeHtml(block.text)}</p>` : ""}${renderLink(block)}</article>`;
 }
 
 function renderMediaPreview(block) {
@@ -212,7 +212,7 @@ function renderMediaPreview(block) {
   let mediaHtml = `<div class="media-placeholder" role="img" aria-label="Media not available">${block.media?.storagePath ? "Loading saved media…" : block.media ? "Select this file again to upload it permanently." : "Your image or short video will appear here."}</div>`;
   if (runtime?.kind === "image") mediaHtml = `<img class="note-media" src="${runtime.url}" alt="${escapeHtml(block.media?.altText || block.caption || "Uploaded image")}">`;
   if (runtime?.kind === "video") mediaHtml = `<video class="note-media" src="${runtime.url}" aria-label="${escapeHtml(block.media?.altText || block.caption || "Uploaded video")}" autoplay muted loop playsinline></video>`;
-  return `<article class="note note--media" style="--note-color:${NOTE_COLORS.blue}"><h3>${escapeHtml(block.title || "A moment to share")}</h3>${mediaHtml}${block.caption ? `<p class="caption">${escapeHtml(block.caption)}</p>` : ""}${renderLink(block)}</article>`;
+  return `<article class="note note--media" style="--note-color:${NOTE_COLORS.blue}">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ""}${mediaHtml}${block.caption ? `<p class="caption">${escapeHtml(block.caption)}</p>` : ""}${renderLink(block)}</article>`;
 }
 
 function renderBulletinBoard() {

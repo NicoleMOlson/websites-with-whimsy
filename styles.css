@@ -189,6 +189,19 @@ dialog::backdrop { background: rgb(35 29 39 / 62%); }
 .board-row button { min-height: 36px; padding: .4rem .55rem; background: #fff; border: 1px solid #9b8f81; border-radius: .35rem; }
 .board-row button + button { color: var(--danger); margin-left: .35rem; }
 .import-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+.legal-links, .app-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
+.legal-links { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: .82rem; }
+.legal-links a, .app-footer a, .policy-back { color: var(--purple-dark); font-weight: 700; }
+.app-footer { padding: 1.1rem; background: var(--paper); border-top: 1px solid var(--line); font-size: .82rem; }
+.policy-page { min-height: 100vh; padding: clamp(1rem, 4vw, 3rem); background-color: #b77d4d; background-image: radial-gradient(#8f5e37 1px, transparent 1px), radial-gradient(#d9a371 1px, transparent 1px); background-position: 0 0, 4px 4px; background-size: 8px 8px; }
+.policy-paper { width: min(780px, 100%); margin: 0 auto; padding: clamp(1.3rem, 5vw, 3rem); background: var(--paper); box-shadow: 8px 12px 25px rgb(45 26 12 / 35%); }
+.policy-paper h1 { margin: .45rem 0; font-family: Georgia, serif; font-size: clamp(2rem, 6vw, 3rem); }
+.policy-paper section { margin-top: 1.8rem; }
+.policy-paper section h2 { font-size: 1.25rem; }
+.policy-paper p, .policy-paper li { line-height: 1.68; }
+.policy-meta { color: var(--muted); font-size: .85rem; }
+.policy-warning { margin: 1.4rem 0; padding: 1rem; background: #fff3cd; border: 1px solid #bd8c23; border-left: 5px solid #9a6810; border-radius: .4rem; line-height: 1.5; }
+.policy-back { display: inline-block; margin-bottom: 1.5rem; }
 
 @media (max-width: 850px) {
   .workspace { grid-template-columns: 1fr; }

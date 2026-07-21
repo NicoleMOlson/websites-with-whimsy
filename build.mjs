@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname);
 const output = resolve(root, "dist");
-const publicFiles = ["index.html", "styles.css", "script.js", "cloud.js"];
+const publicFiles = ["index.html", "terms.html", "privacy.html", "styles.css", "script.js", "cloud.js"];
 const requiredVariables = ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "APP_URL"];
 
 const missing = requiredVariables.filter(name => !process.env[name]?.trim());
