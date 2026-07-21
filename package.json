@@ -1,0 +1,14 @@
+{
+  "name": "websites-with-whimsy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "deploy": "wrangler deploy",
+    "preview:deploy": "wrangler versions upload"
+  },
+  "devDependencies": {
+    "wrangler": "4.112.0"
+  }
+}
